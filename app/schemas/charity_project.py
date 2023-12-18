@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import Field, validator, PositiveInt
+from pydantic import Field, Extra, validator, PositiveInt
 
 from .base import CommonBase
 
@@ -9,6 +9,9 @@ class CharityProjectBase(CommonBase):
     """Базовый класс схемы, от которого наследуем схемы для проекта."""
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = Field(None, min_length=1)
+
+    class Config:
+        extra = Extra.forbid
 
     @validator('name')
     def name_not_empty(cls, value: str):

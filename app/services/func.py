@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime as dt
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,39 +9,44 @@ def close_model(model: ModelType) -> ModelType:
     """Функция закрытия модели."""
     model.invested_amount = model.full_amount
     model.fully_invested = True
-    model.close_date = datetime.utcnow()
+    model.close_date = dt.utcnow()
     return model
 
 
 async def invest(
-        obj_id: int,
-        crud_one: CRUD_TYPE,
-        crud_two: CRUD_TYPE,
+        investment_id: int,
+        investment_crud: CRUD_TYPE,
+        target_crud: CRUD_TYPE,
         session: AsyncSession,
 ) -> ModelType:
     """Корутина инверстирования"""
-    objs_one = await crud_one.get_multi_not_closed(session)
-    obj_two = await crud_two.get(obj_id, session)
-    sum_obj_two = obj_two.full_amount - obj_two.invested_amount
+    investments = await investment_crud.get_multi_not_closed(session)
+
+    target_object = await target_crud.get(investment_id, session)
+    remaining_amount = target_object.full_amount - target_object.invested_amount
     remainder = 0
-    for id in objs_one:
-        obj_one = await crud_one.get(id, session)
-        remainder = obj_one.full_amount - obj_one.invested_amount
-        if remainder > sum_obj_two:
-            obj_one.invested_amount = obj_one.invested_amount + sum_obj_two
-            obj_two = close_model(obj_two)
-            session.add(obj_one)
+
+    for investment_obj_id in investments:
+        investment_object = await investment_crud.get(investment_obj_id, session)
+        remainder = investment_object.full_amount - investment_object.invested_amount
+
+        if remainder > remaining_amount:
+            investment_object.invested_amount += remaining_amount
+            target_object = close_model(target_object)
+            session.add(investment_object)
             break
         else:
-            sum_obj_two -= remainder
-            obj_one = close_model(obj_one)
-            session.add(obj_one)
-    if sum_obj_two == 0:
-        obj_two = close_model(obj_two)
-    elif sum_obj_two > 0 and objs_one:
-        obj_two.invested_amount = obj_two.invested_amount + sum_obj_two
-    session.add(obj_two)
-    await session.commit()
-    await session.refresh(obj_two)
+            remaining_amount -= remainder
+            investment_object = close_model(investment_object)
+            session.add(investment_object)
 
-    return obj_two
+    if remaining_amount == 0:
+        target_object = close_model(target_object)
+    elif remaining_amount > 0 and investments:
+        target_object.invested_amount += remaining_amount
+
+    session.add(target_object)
+    await session.commit()
+    await session.refresh(target_object)
+
+    return target_object
