@@ -1,8 +1,6 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, DateTime, Boolean, Text, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
+from app.core.db import Base
 
 
 class FinancialModel(Base):
